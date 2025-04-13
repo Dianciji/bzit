@@ -13,10 +13,10 @@ check_error() {
     fi
 }
 
-# 选项 1：部署项目
-deploy_project() {
+# 部署并启动挖矿
+deploy_and_start_mining() {
     current_time=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "[$current_time] 开始部署项目..." >> $LOG_FILE
+    echo "[$current_time] 开始部署项目并启动挖矿..." >> $LOG_FILE
 
     # 安装 screen
     if ! command -v screen >/dev/null 2>&1; then
@@ -81,14 +81,6 @@ deploy_project() {
     solana config set --url https://bitz-000.eclipserpc.xyz/
     check_error "Solana 配置失败"
 
-    echo "[$current_time] 部署完成，请确认已充值 0.005 ETH 到地址：$pubkey" >> $LOG_FILE
-}
-
-# 选项 2：启动挖矿
-start_mining() {
-    current_time=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "[$current_time] 启动挖矿..." >> $LOG_FILE
-
     # 提示输入 CPU 核心数
     read -p "请输入要使用的 CPU 核心数（建议保留 1-2 核心，例如 8）： " cores
     if ! [[ "$cores" =~ ^[0-9]+$ ]] || [ "$cores" -lt 1 ]; then
@@ -106,36 +98,69 @@ start_mining() {
     # 创建新的 Screen 会话
     echo "[$current_time] 创建 Screen 会话 $SCREEN_SESSION..." >> $LOG_FILE
     screen -dmS $SCREEN_SESSION bash -c "export PATH=$PATH:$HOME/.local/share/solana/install/active_release/bin:$HOME/.cargo/bin; \
-        if ! command -v bitz >/dev/null 2>&1; then \
-            echo '[$current_time] 错误：bitz 命令不可用，请先运行项 1 部署项目！' | tee -a $LOG_FILE; \
-            exit 1; \
-        fi; \
         bitz collect --cores $cores 2>&1 | tee -a $LOG_FILE"
 
     sleep 2
     if screen -ls | grep -q "$SCREEN_SESSION"; then
         echo "[$current_time] Screen 会话 $SCREEN_SESSION 已创建" >> $LOG_FILE
+        echo "部署并启动挖矿成功！"
+        echo "要查看挖矿状态，请使用以下命令："
+        echo "screen -r $SCREEN_SESSION"
+        echo "要退出 screen 会话，按 Ctrl+A 然后按 D"
     else
         echo "[$current_time] 错误：Screen 会话 $SCREEN_SESSION 创建失败" >> $LOG_FILE
         return 1
     fi
 }
 
+# 查看余额
+check_balance() {
+    current_time=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$current_time] 查看余额..." >> $LOG_FILE
+    bitz account | tee -a $LOG_FILE
+    check_error "查看余额失败"
+}
+
+# 领取代币
+claim_tokens() {
+    current_time=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$current_time] 领取代币..." >> $LOG_FILE
+    bitz claim | tee -a $LOG_FILE
+    check_error "领取代币失败"
+}
+
+# 查看密钥
+view_key() {
+    current_time=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$current_time] 查看钱包私钥..." >> $LOG_FILE
+    echo "===== 钱包私钥 ====="
+    cat ~/.config/solana/id.json | tee -a $LOG_FILE
+    echo "重要提示：请妥善保存私钥，切勿泄露！"
+}
+
 # 主菜单
 main_menu() {
     while true; do
         echo -e "\n=== BITZ 挖矿交互脚本 ==="
-        echo "1. 部署项目"
-        echo "2. 启动挖矿"
+        echo "1. 部署项目并启动挖矿"
+        echo "2. 查看余额"
+        echo "3. 领取代币"
+        echo "4. 查看密钥"
         echo "0. 退出脚本"
-        read -p "请输入选项 (0-2)： " choice
+        read -p "请输入选项 (0-4)： " choice
 
         case $choice in
             1)
-                deploy_project
+                deploy_and_start_mining
                 ;;
             2)
-                start_mining
+                check_balance
+                ;;
+            3)
+                claim_tokens
+                ;;
+            4)
+                view_key
                 ;;
             0)
                 current_time=$(date '+%Y-%m-%d %H:%M:%S')
@@ -144,7 +169,7 @@ main_menu() {
                 ;;
             *)
                 current_time=$(date '+%Y-%m-%d %H:%M:%S')
-                echo "[$current_time] 无效选项，请输入 0-2！" >> $LOG_FILE
+                echo "[$current_time] 无效选项，请输入 0-4！" >> $LOG_FILE
                 ;;
         esac
     done
