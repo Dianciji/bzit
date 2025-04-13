@@ -57,6 +57,20 @@ deploy_project() {
     solana-keygen new --no-passphrase
     check_error "钱包创建失败"
 
+    # 查看私钥并输出公钥地址
+    echo "[$current_time] 查看钱包信息..." >> $LOG_FILE
+    echo "===== 钱包私钥 ====="
+    cat ~/.config/solana/id.json
+    echo "===== 钱包公钥地址 ====="
+    pubkey=$(solana address)
+    echo "$pubkey"
+    echo "[$current_time] 钱包公钥地址：$pubkey" >> $LOG_FILE
+    echo -e "\n重要提示：请妥善备份以上私钥，切勿泄露！"
+    echo "请充值 0.005 ETH 到地址：$pubkey"
+    echo "备份完成后按回车键继续..."
+    read -r
+    echo "[$current_time] 用户已确认备份私钥并继续" >> $LOG_FILE
+
     # 安装 BITZ CLI
     echo "[$current_time] 安装 BITZ CLI..." >> $LOG_FILE
     cargo install bitz
@@ -67,7 +81,7 @@ deploy_project() {
     solana config set --url https://bitz-000.eclipserpc.xyz/
     check_error "Solana 配置失败"
 
-    echo "[$current_time] 部署完成，请充值 0.005 ETH 到地址：$(solana address)" >> $LOG_FILE
+    echo "[$current_time] 部署完成，请确认已充值 0.005 ETH 到地址：$pubkey" >> $LOG_FILE
 }
 
 # 选项 2：启动挖矿
